@@ -120,7 +120,3 @@ Since we run everything in PyCharm, simply run the `main.py` script in PyCharm t
 ## License
 
 This project is released under the MIT License. See [LICENSE](LICENSE) for details.
-
----
-
-*Happy budgeting!* 🎉
