@@ -172,14 +172,41 @@ class FinanceApp(tk.Tk):
         fill()
 
     def _create_report(self):
-        period = simpledialog.askstring("Period", "Enter period (daily/monthly):", parent=self)
-        if period not in ['daily', 'monthly']:
-            messagebox.showerror("Error", "Invalid period. Must be 'daily' or 'monthly'.")
-            return
-        summary = self.db.get_summary(period=period)
-        report_text = self.reporter.format_summary(summary)
-        chart_text = self.reporter.ascii_chart(summary)
-        messagebox.showinfo("Report", report_text + "\n\n" + chart_text)
+        win = tk.Toplevel(self)
+        win.title("Report")
+        win.geometry("420x380")
+
+        period = tk.StringVar(value='daily')
+        top = ttk.Frame(win, padding=(10, 10, 10, 5))
+        top.pack(fill='x')
+
+        table_frame = ttk.Frame(win, padding=(10, 0, 10, 0))
+        table_frame.pack(fill='both', expand=True)
+        tree = ttk.Treeview(table_frame, columns=('category', 'total', 'share'), show='headings')
+        tree.heading('category', text="Category")
+        tree.heading('total', text="Total")
+        tree.heading('share', text="Share")
+        tree.column('category', width=170)
+        tree.column('total', width=100, anchor='e')
+        tree.column('share', width=80, anchor='e')
+        tree.pack(fill='both', expand=True)
+
+        total_label = ttk.Label(win, font=('Helvetica', 11, 'bold'), padding=10)
+        total_label.pack(anchor='e')
+
+        def fill():
+            rows, total = self.reporter.report(period.get())
+            tree.delete(*tree.get_children())
+            for category, amount, share in rows:
+                tree.insert('', 'end', values=(category, f"{amount:.2f}", f"{share:.1f}%"))
+            if rows:
+                total_label.config(text=f"Total: {total:.2f}")
+            else:
+                total_label.config(text="No expenses in this period.")
+
+        ttk.Radiobutton(top, text="Today", value='daily', variable=period, command=fill).pack(side='left')
+        ttk.Radiobutton(top, text="This month", value='monthly', variable=period, command=fill).pack(side='left', padx=10)
+        fill()
 
     def _train_model(self):
         expenses = self.db.get_labeled_expenses()
