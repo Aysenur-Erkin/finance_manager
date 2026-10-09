@@ -51,6 +51,13 @@ class DatabaseManager:
         rows = cursor.fetchall()
         return [dict(row) for row in rows]
 
+    def get_labeled_expenses(self):
+        # 'Unknown' rows come from the old version where the user never picked a category,
+        # training on them would teach the model to always answer 'Unknown'
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT description, category FROM expenses WHERE category != 'Unknown'")
+        return [dict(row) for row in cursor.fetchall()]
+
     def get_summary(self, period: str = "daily"):
         cursor = self.conn.cursor()
 

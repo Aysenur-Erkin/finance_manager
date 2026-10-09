@@ -7,6 +7,9 @@ from data_manager import DatabaseManager
 from classifier import ExpenseClassifier
 from reporter import Reporter
 
+MIN_TRAIN_ROWS = 5
+
+
 class FinanceApp(tk.Tk):
     def __init__(self):
         super().__init__()
@@ -77,13 +80,19 @@ class FinanceApp(tk.Tk):
         messagebox.showinfo("Report", report_text + "\n\n" + chart_text)
 
     def _train_model(self):
-        expenses = self.db.get_expenses()
-        if not expenses:
-            messagebox.showwarning("Warning", "Not enough data to train the classifier.")
+        expenses = self.db.get_labeled_expenses()
+        categories = {e['category'] for e in expenses}
+        if len(expenses) < MIN_TRAIN_ROWS or len(categories) < 2:
+            messagebox.showwarning(
+                "Warning",
+                f"Need at least {MIN_TRAIN_ROWS} expenses in 2 different categories to train.\n"
+                f"Now: {len(expenses)} expenses, {len(categories)} categories."
+            )
             return
         self.classifier.train(expenses)
         self.classifier.save_model()
-        messagebox.showinfo("Success", "Classifier trained and saved successfully.")
+        messagebox.showinfo("Success", f"Classifier trained on {len(expenses)} expenses ({len(categories)} categories).")
+
 
 if __name__ == "__main__":
     app = FinanceApp()
