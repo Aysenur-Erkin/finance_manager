@@ -1,4 +1,3 @@
-import sys
 import tkinter as tk
 from tkinter import simpledialog, messagebox
 from tkinter import ttk
@@ -7,6 +6,7 @@ from data_manager import DatabaseManager
 from classifier import ExpenseClassifier
 from reporter import Reporter
 
+DEFAULT_CATEGORIES = ["Food", "Transport", "Bills", "Shopping", "Health", "Entertainment", "Other"]
 MIN_TRAIN_ROWS = 5
 
 
@@ -46,6 +46,57 @@ class FinanceApp(tk.Tk):
             button.grid(row=idx, column=0, sticky='ew', pady=5)
         button_frame.columnconfigure(0, weight=1)
 
+    def _categories(self):
+        # defaults first, then whatever the user typed before
+        result = list(DEFAULT_CATEGORIES)
+        for cat in self.db.get_categories():
+            if cat != 'Unknown' and cat.lower() not in (c.lower() for c in result):
+                result.append(cat)
+        return result
+
+    def _ask_category(self, title, description, current=None, hint=""):
+        win = tk.Toplevel(self)
+        win.title(title)
+        win.resizable(False, False)
+        win.transient(self)
+
+        frame = ttk.Frame(win, padding=15)
+        frame.pack(fill='both')
+        ttk.Label(frame, text=description, font=('Helvetica', 11, 'bold'), wraplength=280).pack(anchor='w')
+        if hint:
+            ttk.Label(frame, text=hint, foreground='gray').pack(anchor='w', pady=(2, 0))
+
+        choice = tk.StringVar(value=current or "")
+        box = ttk.Combobox(frame, textvariable=choice, values=self._categories(), width=30)
+        box.pack(fill='x', pady=(10, 10))
+        box.focus_set()
+
+        result = {'category': None}
+
+        def ok(event=None):
+            text = choice.get().strip()
+            if not text:
+                box.focus_set()
+                return
+            # "food" and "Food" should not become two different classes
+            for cat in self._categories():
+                if cat.lower() == text.lower():
+                    text = cat
+                    break
+            result['category'] = text
+            win.destroy()
+
+        buttons = ttk.Frame(frame)
+        buttons.pack(fill='x')
+        ttk.Button(buttons, text="Cancel", command=win.destroy).pack(side='right')
+        ttk.Button(buttons, text="OK", command=ok).pack(side='right', padx=(0, 5))
+        win.bind('<Return>', ok)
+        win.bind('<Escape>', lambda event: win.destroy())
+
+        win.grab_set()
+        self.wait_window(win)
+        return result['category']
+
     def _add_expense(self):
         amount = simpledialog.askfloat("Amount", "Enter expense amount:", parent=self)
         if amount is None:
@@ -53,7 +104,16 @@ class FinanceApp(tk.Tk):
         description = simpledialog.askstring("Description", "Enter description:", parent=self)
         if not description:
             return
-        category = self.classifier.predict_category(description)
+
+        guess = self.classifier.predict_category(description)
+        if guess:
+            hint = f"Model suggests: {guess} (change it if it's wrong)"
+        else:
+            hint = "No trained model yet, pick a category"
+        category = self._ask_category("Category", description, current=guess, hint=hint)
+        if not category:
+            return
+
         self.db.add_expense(amount, description, category)
         messagebox.showinfo("Success", f"Expense added:\n{amount} - {description} ({category})")
 

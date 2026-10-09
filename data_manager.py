@@ -51,6 +51,11 @@ class DatabaseManager:
         rows = cursor.fetchall()
         return [dict(row) for row in rows]
 
+    def get_categories(self):
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT DISTINCT category FROM expenses ORDER BY category")
+        return [row['category'] for row in cursor.fetchall()]
+
     def get_labeled_expenses(self):
         # 'Unknown' rows come from the old version where the user never picked a category,
         # training on them would teach the model to always answer 'Unknown'

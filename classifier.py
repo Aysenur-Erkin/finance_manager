@@ -19,9 +19,10 @@ class ExpenseClassifier:
         X = self.vectorizer.fit_transform(texts)
         self.model.fit(X, labels)
 
-    def predict_category(self, description: str) -> str:
+    def predict_category(self, description: str):
+        # no trained model yet -> no suggestion, the user picks the category
         if not hasattr(self.model, 'classes_'):
-            return 'Unknown'
+            return None
         X = self.vectorizer.transform([description])
         return self.model.predict(X)[0]
 
