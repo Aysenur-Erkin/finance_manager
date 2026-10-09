@@ -118,16 +118,58 @@ class FinanceApp(tk.Tk):
         messagebox.showinfo("Success", f"Expense added:\n{amount} - {description} ({category})")
 
     def _list_expenses(self):
-        category = simpledialog.askstring("Category", "Category:", parent=self) or None
-        limit = simpledialog.askinteger("Limit", "Number of records to show:", parent=self)
-        expenses = self.db.get_expenses(category=category, limit=limit)
-        if not expenses:
-            messagebox.showinfo("Expenses", "No expenses found.")
-            return
-        expense_text = "\n".join(
-            f"{e['date']} | {e['amount']} | {e['description']} | {e['category']}" for e in expenses
-        )
-        messagebox.showinfo("Expenses", expense_text)
+        win = tk.Toplevel(self)
+        win.title("Expenses")
+        win.geometry("650x400")
+
+        top = ttk.Frame(win, padding=(10, 10, 10, 5))
+        top.pack(fill='x')
+        ttk.Label(top, text="Category:").pack(side='left')
+        selected = tk.StringVar(value="All")
+        filter_box = ttk.Combobox(top, textvariable=selected, state='readonly', width=18)
+        filter_box.pack(side='left', padx=5)
+        ttk.Label(top, text="double-click a row to change its category", foreground='gray').pack(side='right')
+
+        table_frame = ttk.Frame(win, padding=(10, 0, 10, 10))
+        table_frame.pack(fill='both', expand=True)
+        columns = ('date', 'amount', 'description', 'category')
+        tree = ttk.Treeview(table_frame, columns=columns, show='headings')
+        tree.heading('date', text="Date")
+        tree.heading('amount', text="Amount")
+        tree.heading('description', text="Description")
+        tree.heading('category', text="Category")
+        tree.column('date', width=140, stretch=False)
+        tree.column('amount', width=80, anchor='e', stretch=False)
+        tree.column('description', width=240)
+        tree.column('category', width=110, stretch=False)
+        scroll = ttk.Scrollbar(table_frame, orient='vertical', command=tree.yview)
+        tree.configure(yscrollcommand=scroll.set)
+        tree.pack(side='left', fill='both', expand=True)
+        scroll.pack(side='right', fill='y')
+
+        def fill():
+            filter_box['values'] = ["All"] + self.db.get_categories()
+            category = None if selected.get() == "All" else selected.get()
+            tree.delete(*tree.get_children())
+            for e in self.db.get_expenses(category=category):
+                tree.insert('', 'end', iid=str(e['id']),
+                            values=(e['date'], f"{e['amount']:.2f}", e['description'], e['category']))
+
+        def edit(event):
+            row = tree.identify_row(event.y)
+            if not row:
+                return
+            date, amount, description, old = tree.item(row, 'values')
+            new = self._ask_category("Change category", description,
+                                     current=None if old == 'Unknown' else old,
+                                     hint=f"{date}  |  {amount}  |  now: {old}")
+            if new and new != old:
+                self.db.update_category(int(row), new)
+                fill()
+
+        filter_box.bind('<<ComboboxSelected>>', lambda event: fill())
+        tree.bind('<Double-1>', edit)
+        fill()
 
     def _create_report(self):
         period = simpledialog.askstring("Period", "Enter period (daily/monthly):", parent=self)

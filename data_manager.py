@@ -34,7 +34,7 @@ class DatabaseManager:
 
     def get_expenses(self, category: str = None, limit: int = None):
         cursor = self.conn.cursor()
-        query = "SELECT date, amount, description, category FROM expenses"
+        query = "SELECT id, date, amount, description, category FROM expenses"
         params = []
 
         if category:
@@ -50,6 +50,11 @@ class DatabaseManager:
         cursor.execute(query, params)
         rows = cursor.fetchall()
         return [dict(row) for row in rows]
+
+    def update_category(self, expense_id: int, category: str):
+        cursor = self.conn.cursor()
+        cursor.execute("UPDATE expenses SET category = ? WHERE id = ?", (category, expense_id))
+        self.conn.commit()
 
     def get_categories(self):
         cursor = self.conn.cursor()
